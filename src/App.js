@@ -8,6 +8,8 @@ function App() {
   const [heroComplete, setHeroComplete] = useState(false); // Track Hero completion
   const [textIndex, setTextIndex] = useState(0); // Track current Hero text index
   const [isReturningToHero, setIsReturningToHero] = useState(false);
+  const [lastScrollTime, setLastScrollTime] = useState(0);
+
 
   const sections = ["hero", "education", "work", "achievements", "projects"];
   const textOptions = [
@@ -23,15 +25,21 @@ function App() {
   useEffect(() => {
     const handleScroll = (event) => {
       event.preventDefault();
+      const now = Date.now();
+
+      if (now - lastScrollTime < 700) return; // Prevents multiple scrolls (700ms delay)
+      setLastScrollTime(now);
+
+      const scrollDirection = Math.sign(event.deltaY);
 
       if (currentSection === 0 && !isReturningToHero) {
-        if (event.deltaY > 0 && textIndex < textOptions.length - 1) {
+        if (scrollDirection > 0 && textIndex < textOptions.length - 1) {
           setTextIndex((prev) => prev + 1);
-        } else if (event.deltaY < 0 && textIndex > 0) {
+        } else if (scrollDirection < 0 && textIndex > 0) {
           setTextIndex((prev) => prev - 1);
         }
 
-        if (textIndex === textOptions.length - 2 && event.deltaY > 0) {
+        if (textIndex === textOptions.length - 2 && scrollDirection > 0) {
           setHeroComplete(true);
         }
       }
@@ -39,7 +47,7 @@ function App() {
 
     window.addEventListener("wheel", handleScroll, { passive: false });
     return () => window.removeEventListener("wheel", handleScroll);
-  }, [textIndex, heroComplete, currentSection, isReturningToHero]);
+  }, [textIndex, heroComplete, currentSection, isReturningToHero, lastScrollTime]);
 
   // Enable section scrolling after Hero completes
   useEffect(() => {
@@ -47,25 +55,28 @@ function App() {
 
     const handleSectionScroll = (event) => {
       event.preventDefault();
+      const now = Date.now();
 
-      if (event.deltaY > 0) {
-        setCurrentSection((prev) => Math.min(prev + 1, sections.length - 1));
-      } else {
-        setCurrentSection((prev) => Math.max(prev - 1, 0));
+      if (now - lastScrollTime < 700) return; // Prevents multiple scrolls (700ms delay)
+      setLastScrollTime(now);
 
-        // Detect returning to Hero section
-        if (currentSection === 1) {
-          setHeroComplete(false);
-          setTextIndex(textOptions.length - 1);
-          setIsReturningToHero(true);
-          setTimeout(() => setIsReturningToHero(false), 500);
-        }
+      const scrollDirection = Math.sign(event.deltaY);
+
+      setCurrentSection((prev) =>
+        scrollDirection > 0 ? Math.min(prev + 1, sections.length - 1) : Math.max(prev - 1, 0)
+      );
+
+      if (currentSection === 1 && scrollDirection < 0) {
+        setHeroComplete(false);
+        setTextIndex(textOptions.length - 1);
+        setIsReturningToHero(true);
+        setTimeout(() => setIsReturningToHero(false), 500);
       }
     };
 
     window.addEventListener("wheel", handleSectionScroll, { passive: false });
     return () => window.removeEventListener("wheel", handleSectionScroll);
-  }, [heroComplete, currentSection]);
+  }, [heroComplete, currentSection, lastScrollTime]);
 
   // Scroll to section when `currentSection` changes
   useEffect(() => {
